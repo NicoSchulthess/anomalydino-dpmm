@@ -1,0 +1,64 @@
+# Directory to save results
+embedding_model_name: ${.model_name}_${.density_model.model_name}_${.resolution}
+density_model_name: ${ifequal_else:${.density_model.model_name},dpmm,${density_model.dpmm.max_num_components}_${.density_model.dpmm.gaussian.covariance_type}}_pca_${.embedding_pca_components}
+architecture_name: ${.embedding_model_name}_${.density_model_name}
+experiment_name: ${.shots}-shot_preprocess=${.preprocess}_objectmask=${.object_mask}_normalize_${.normalize_embeddings}_pos_enc_${.use_positional_encoding}
+logdir: results/AnomalyDINODPMM/${.dataset.name}/${.architecture_name}/${.experiment_name}/seed_${.seed}
+tag: ""                                          # Optional tag for the saving directory.
+wandb_log: False
+wandb_project: AnomalyDINODPMM
+resume: True
+
+# Embedding model
+model_name: dinov2_vits14                        # Name of the backbone model. Choose from ['dinov2_vits14', 'dino_vitb24', 'dino_vitl14', 'dino_vitg14', 'vit_b_16', 'dino_resnet50-layer2-layer3', 'resnet18-layer2-layer3', 'wide_resnet50_2-layer2-layer3'].
+normalize_embeddings: True                       # embeddings are normalized to unit norm if True
+use_positional_encoding: False                    # embeddings are extended with a positional encoding if True
+embedding_pca_components: -1                      # Number of components for the pca of embeddings (set to -1 to not use any pca)
+embedding_pca_batchsize: 200                       # Number of samples to use for estimating pca (estimation only done once)
+
+# Experiment hyperparameters
+shots: -1                                         # Number of shots to evaluate. Full-shot scenario is -1.
+seed: 0
+device: cuda:0
+object_mask: False
+pca_threshold: 28
+resize_labels: False                            # false: using original image size, true: rescale to same resolution as input image
+epochs: 40
+embedding_batch_size: 12
+evaluation_max_batch_size: 32768
+normalization: ImageNet                         # ImageNet or None
+preprocess: agnostic                             # Preprocessing method. Choose from ['agnostic', 'informed', 'masking_only'].
+resolution: 448
+feature_resolution_train: 32                     # Feature maps during training for ResNet are bilinearly resampled to this resolution. No interpolation if set to negative value.
+feature_resolution_eval: 32                     # Feature maps during evaluation and visualization for ResNet are bilinearly resampled to this resolution. No interpolation if set to negative value.
+
+# Visualization
+visualize_training_step: False
+rotate_visualized_samples: 0                   # Number of times the images are rotated clockwise by 90°
+visualize_embedding_maps: False
+
+# Embedding clustering
+density_model:
+  model_name: dpmm                              # dpmm
+  dpmm:
+    max_num_components: 500                     # Number of components for truncated DP mixture
+    update_rate: 0.2
+    schedule: ema                               # ema or exp
+    component_type: gaussian                    # gaussian or vMF
+    gaussian:
+      covariance_type: diag                     # diag, full or spherical
+      covariance_regularization: 1e-6           # regularization term added to the diagonal of the covariance matrices (to keep them positive definite)
+    create_component_map_plot: False
+
+# Dataset
+dataset:
+  name: liver
+  data_root: /home/scnico/datasets/bmad/hist_DIY          # Path to the root directory of the dataset.
+  path_train_images: "{data_root}/train/{type_anomaly}"
+  path_val_images: "{data_root}/valid/img/{type_anomaly}"
+  path_val_labels: "{data_root}/valid/label/{type_anomaly}"
+  path_test_images: "{data_root}/test/img/{type_anomaly}"
+  path_test_labels: "{data_root}/test/label/{type_anomaly}"
+  objects: [""]
+  object_anomalies:
+    "": ["Ungood"]
